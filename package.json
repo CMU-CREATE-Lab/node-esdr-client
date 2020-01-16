@@ -1,0 +1,19 @@
+{
+   "name" : "esdr-client",
+   "version" : "1.0.0",
+   "description" : "A simple Node.js ESDR client.",
+   "main" : "index.js",
+   "scripts" : {
+      "test" : "echo \"Error: no test specified\" && exit 1"
+   },
+   "repository" : {
+      "type" : "git",
+      "url" : "git+https://github.com/CMU-CREATE-Lab/node-esdr-client.git"
+   },
+   "author" : "Chris Bartley <bartley@cmu.edu>",
+   "license" : "UNLICENSED",
+   "bugs" : {
+      "url" : "https://github.com/CMU-CREATE-Lab/node-esdr-client/issues"
+   },
+   "homepage" : "https://github.com/CMU-CREATE-Lab/node-esdr-client#readme"
+}
