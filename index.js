@@ -470,6 +470,12 @@ class EsdrClient {
       return response.data.data;
    }
 
+   async getDevice(productId, serialNumber, fields = null) {
+      let fieldsClause = Array.isArray(fields) && fields.length > 0 ? '?fields=' + fields.join(',') : '';
+      const response = await this._esdrGet('/api/v1/products/' + productId + '/devices/' + serialNumber + fieldsClause, true);
+      return response.data.data;
+   }
+
    async getUserDevicesForProduct(productId, fields, orderBy) {
       const orderByClause = TypeUtils.isNonEmptyString(orderBy) ? '&orderBy=' + orderBy : '';
       const response = await this._esdrGet('/api/v1/devices' +
