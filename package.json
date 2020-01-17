@@ -1,19 +1,26 @@
 {
-   "name" : "esdr-client",
-   "version" : "1.0.0",
-   "description" : "A simple Node.js ESDR client.",
-   "main" : "index.js",
-   "scripts" : {
-      "test" : "echo \"Error: no test specified\" && exit 1"
+   "name": "esdr-client",
+   "version": "0.1.0",
+   "description": "A simple Node.js ESDR client.",
+   "main": "index.js",
+   "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
    },
-   "repository" : {
-      "type" : "git",
-      "url" : "git+https://github.com/CMU-CREATE-Lab/node-esdr-client.git"
+   "repository": {
+      "type": "git",
+      "url": "git+https://github.com/CMU-CREATE-Lab/node-esdr-client.git"
    },
-   "author" : "Chris Bartley <bartley@cmu.edu>",
-   "license" : "UNLICENSED",
-   "bugs" : {
-      "url" : "https://github.com/CMU-CREATE-Lab/node-esdr-client/issues"
+   "author": "Chris Bartley <bartley@cmu.edu>",
+   "license": "UNLICENSED",
+   "bugs": {
+      "url": "https://github.com/CMU-CREATE-Lab/node-esdr-client/issues"
    },
-   "homepage" : "https://github.com/CMU-CREATE-Lab/node-esdr-client#readme"
+   "homepage": "https://github.com/CMU-CREATE-Lab/node-esdr-client#readme",
+   "dependencies": {
+      "@log4js-node/log4js-api": "^1.0.2",
+      "axios": "^0.19.1",
+      "data-type-utils": "^1.4.0",
+      "http-status": "^1.4.2",
+      "jsonfile": "^5.0.0"
+   }
 }

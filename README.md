@@ -1,3 +1,9 @@
 # node-esdr-client
 
-A simple Node.js ESDR client.  Written for Node.js 12.14.x.
+A simple Node.js ESDR client.  Tested with Node v12.14.x.
+
+## Installation
+
+```
+npm install esdr-client
+```
