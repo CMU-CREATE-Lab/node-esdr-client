@@ -274,7 +274,13 @@ class JsonFileTokenStorageStrategy extends TokenStorageStrategy {
 const HTTP_TIMEOUT_MILLIS = 10000;
 
 class EsdrClient {
-   constructor(host, userCredentials, oAuth2ClientCredentials, tokenPersistenceStrategy, appName) {
+   constructor(appName, host, userCredentials, oAuth2ClientCredentials, tokenStorageStrategy) {
+      if (!TypeUtils.isNonEmptyString(appName)) {
+         throw new TypeError("appName must be a non-empty string");
+      }
+
+      this._log = log4js.getLogger('EsdrClient[' + appName + ']');
+
       if (!TypeUtils.isNonEmptyString(host)) {
          throw new TypeError("host must be a non-empty string");
       }
@@ -284,14 +290,19 @@ class EsdrClient {
       if (!TypeUtils.isDefinedAndNotNull(oAuth2ClientCredentials)) {
          throw new TypeError("oAuth2ClientCredentials must be defined and non-null");
       }
-      if (!TypeUtils.isNonEmptyString(appName)) {
-         throw new TypeError("appName must be a non-empty string");
-      }
-      if (!(tokenPersistenceStrategy instanceof TokenStorageStrategy)) {
-         throw new TypeError("tokenPersistenceStrategy must be an instance of a class which implements the TokenStorageStrategy abstract class");
-      }
 
-      this._log = log4js.getLogger('EsdrClient[' + appName + ']');
+      if (TypeUtils.isDefinedAndNotNull(tokenStorageStrategy)) {
+         if (tokenStorageStrategy instanceof TokenStorageStrategy) {
+            this._tokenStore = tokenStorageStrategy;
+         }
+         else {
+            throw new TypeError("tokenStorageStrategy must be an instance of a class which implements the TokenStorageStrategy abstract class");
+         }
+      }
+      else {
+         this._log.debug("No TokenStorageStrategy specified, defaulting to InMemoryTokenStorageStrategy");
+         this._tokenStore = new InMemoryTokenStorageStrategy();
+      }
 
       const userAgent = [
          appName + '[EsdrClient]/' + packageJson.version,
@@ -313,8 +324,6 @@ class EsdrClient {
          id : oAuth2ClientCredentials['id'],
          secret : oAuth2ClientCredentials['secret']
       };
-
-      this._tokenStore = tokenPersistenceStrategy;
    }
 
    async _callEsdr(url, method, data, willIncludeAuthorization = false) {
