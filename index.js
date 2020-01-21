@@ -388,6 +388,10 @@ class EsdrClient {
       return this._callEsdr(url, 'post', data, willIncludeAuthorization);
    }
 
+   _esdrPut(url, data, willIncludeAuthorization = false) {
+      return this._callEsdr(url, 'put', data, willIncludeAuthorization);
+   }
+
    async _ensureTokensAreLoaded() {
       if (!this._tokenStore.hasTokens()) {
          if (!await this._tokenStore.load()) {
@@ -509,6 +513,43 @@ class EsdrClient {
                                            orderByClause,
                                            true);
       return response.data.data;
+   }
+
+   async getFeedMaxTimeMillis(feedIdOrApiKey) {
+      const response = await this._esdrGet('/api/v1/feeds/' + feedIdOrApiKey + '?fields=maxTimeSecs', true);
+
+      if (TypeUtils.isDefinedAndNotNull(response) &&
+          TypeUtils.isDefinedAndNotNull(response.data) &&
+          TypeUtils.isDefinedAndNotNull(response.data.data)) {
+         return TypeUtils.isDefinedAndNotNull(response.data.data['maxTimeSecs']) ? 1000 * response.data.data['maxTimeSecs'] : 0;
+      }
+
+      throw new Error("Unexpected feed data, maxTimeSecs not found");
+   }
+
+   async uploadToFeedUsingApiKey(feedApiKey, payload) {
+      const self = this;
+      if (TypeUtils.isNonEmptyString(feedApiKey)) {
+         if (payload && 'data' in payload && Array.isArray(payload.data)) {
+            if (payload.data.length > 0) {
+               if (self._log.isDebugEnabled()) {
+                  self._log.debug("Uploading [" + payload.data.length + "] samples...");
+               }
+               await self._esdrPut('/api/v1/feeds/' + feedApiKey,       // the upload URL, referenced by API key
+                                   payload,                             // the JSON payload
+                                   false);                              // using API key, so no authorization required
+            }
+            else {
+               self._log.warn("Empty upload payload, nothing to do.");
+            }
+         }
+         else {
+            throw new TypeError("Invalid payload");
+         }
+      }
+      else {
+         throw new TypeError("Feed API key must be a non-empty string");
+      }
    }
 }
 
