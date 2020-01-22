@@ -1,3 +1,5 @@
 *.iml
 *.ipr
 *.iws
+auth.json
+test.js
