@@ -274,7 +274,7 @@ class JsonFileTokenStorageStrategy extends TokenStorageStrategy {
 const HTTP_TIMEOUT_MILLIS = 10000;
 
 class EsdrClient {
-   constructor(appName, host, userCredentials, oAuth2ClientCredentials, tokenStorageStrategy) {
+   constructor(appName, host, userCredentials = null, oAuth2ClientCredentials = null, tokenStorageStrategy = null) {
       if (!TypeUtils.isNonEmptyString(appName)) {
          throw new TypeError("appName must be a non-empty string");
       }
@@ -283,12 +283,6 @@ class EsdrClient {
 
       if (!TypeUtils.isNonEmptyString(host)) {
          throw new TypeError("host must be a non-empty string");
-      }
-      if (!TypeUtils.isDefinedAndNotNull(userCredentials)) {
-         throw new TypeError("userCredentials must be defined and non-null");
-      }
-      if (!TypeUtils.isDefinedAndNotNull(oAuth2ClientCredentials)) {
-         throw new TypeError("oAuth2ClientCredentials must be defined and non-null");
       }
 
       if (TypeUtils.isDefinedAndNotNull(tokenStorageStrategy)) {
@@ -316,18 +310,30 @@ class EsdrClient {
                                     headers : { 'user-agent' : userAgent }
                                  });
 
-      this._user = {
-         username : userCredentials['username'],
-         password : userCredentials['password']
-      };
-      this._client = {
-         id : oAuth2ClientCredentials['id'],
-         secret : oAuth2ClientCredentials['secret']
-      };
+      if (TypeUtils.isDefinedAndNotNull(userCredentials)) {
+         this._user = {
+            username : userCredentials['username'],
+            password : userCredentials['password']
+         };
+      }
+      else {
+         this._user = null;
+      }
+      if (TypeUtils.isDefinedAndNotNull(oAuth2ClientCredentials)) {
+         this._client = {
+            id : oAuth2ClientCredentials['id'],
+            secret : oAuth2ClientCredentials['secret']
+         };
+      }
+      else {
+         this._client = null;
+      }
+      this._hasUserAndClient = this._user !== null && this._client !== null;
    }
 
-   async _callEsdr(url, method, data, willIncludeAuthorization = false) {
+   async _callEsdr(url, method, data, authorizationInclusionRequested = false) {
       const self = this;
+      const willIncludeAuthorization = self._hasUserAndClient && authorizationInclusionRequested;
       const doRequest = async function() {
          try {
             const requestConfig = {
@@ -359,7 +365,7 @@ class EsdrClient {
              err.response && err.response.status === httpStatus.UNAUTHORIZED) {
 
             // if authorized, then try to obtain auth tokens and try the request again.
-            const wasSuccessful = await this._obtainAuthTokens();
+            const wasSuccessful = await self._obtainAuthTokens();
             if (wasSuccessful) {
                try {
                   return await doRequest();
@@ -393,52 +399,66 @@ class EsdrClient {
    }
 
    async _ensureTokensAreLoaded() {
-      if (!this._tokenStore.hasTokens()) {
-         if (!await this._tokenStore.load()) {
-            await this._obtainAuthTokens();
+      if (this._hasUserAndClient) {
+         if (!this._tokenStore.hasTokens()) {
+            if (!await this._tokenStore.load()) {
+               await this._obtainAuthTokens();
+            }
          }
       }
    }
 
    async _refreshTokens() {
-      try {
-         const response = await this._esdrPost('/oauth/token',
-                                               {
-                                                  grant_type : "refresh_token",
-                                                  client_id : this._client.id,
-                                                  client_secret : this._client.secret,
-                                                  refresh_token : this._tokenStore.getRefreshToken()
-                                               });
+      if (this._hasUserAndClient) {
+         try {
+            const response = await this._esdrPost('/oauth/token',
+                                                  {
+                                                     grant_type : "refresh_token",
+                                                     client_id : this._client.id,
+                                                     client_secret : this._client.secret,
+                                                     refresh_token : this._tokenStore.getRefreshToken()
+                                                  });
 
-         // noinspection JSCheckFunctionSignatures
-         return await this._tokenStore.save(this._tokenStore.getUserId(),
-                                            response.data['access_token'],
-                                            response.data['refresh_token']);
+            // noinspection JSCheckFunctionSignatures
+            return await this._tokenStore.save(this._tokenStore.getUserId(),
+                                               response.data['access_token'],
+                                               response.data['refresh_token']);
+         }
+         catch (err) {
+            this._log.error("Error refreshing tokens for user [" + this._user.username + "]: ", err.message);
+            return Promise.resolve(false);
+         }
       }
-      catch (err) {
-         this._log.error("Error refreshing tokens for user [" + this._user.username + "]: ", err.message);
-         return false;
+      else {
+         this._log.error("Cannot refresh tokens since no user and/or client were provided to the constructor");
+         return Promise.resolve(false);
       }
    }
 
    async _authenticate() {
-      try {
-         const response = await this._esdrPost('/oauth/token',
-                                               {
-                                                  grant_type : "password",
-                                                  client_id : this._client.id,
-                                                  client_secret : this._client.secret,
-                                                  username : this._user.username,
-                                                  password : this._user.password
-                                               });
+      if (this._hasUserAndClient) {
+         try {
+            const response = await this._esdrPost('/oauth/token',
+                                                  {
+                                                     grant_type : "password",
+                                                     client_id : this._client.id,
+                                                     client_secret : this._client.secret,
+                                                     username : this._user.username,
+                                                     password : this._user.password
+                                                  });
 
-         return await this._tokenStore.save(response.data['userId'],
-                                            response.data['access_token'],
-                                            response.data['refresh_token']);
+            return await this._tokenStore.save(response.data['userId'],
+                                               response.data['access_token'],
+                                               response.data['refresh_token']);
+         }
+         catch (err) {
+            this._log.error("Error authenticating user [" + this._user.username + "]: ", err.message);
+            return Promise.resolve(false);
+         }
       }
-      catch (err) {
-         this._log.error("Error authenticating user [" + this._user.username + "]: ", err.message);
-         return false;
+      else {
+         this._log.error("Cannot authenticate since no user and/or client were provided to the constructor");
+         return Promise.resolve(false);
       }
    }
 
