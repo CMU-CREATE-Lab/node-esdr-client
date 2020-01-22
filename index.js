@@ -515,8 +515,8 @@ class EsdrClient {
       return response.data.data;
    }
 
-   async getFeedMaxTimeMillis(feedIdOrApiKey) {
-      const response = await this._esdrGet('/api/v1/feeds/' + feedIdOrApiKey + '?fields=maxTimeSecs', true);
+   async getFeedMaxTimeMillisUsingApiKey(feedApiKey) {
+      const response = await this._esdrGet('/api/v1/feeds/' + feedApiKey + '?fields=maxTimeSecs', false);
 
       if (TypeUtils.isDefinedAndNotNull(response) &&
           TypeUtils.isDefinedAndNotNull(response.data) &&
