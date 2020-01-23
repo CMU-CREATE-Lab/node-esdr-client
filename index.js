@@ -8,6 +8,21 @@ const packageJson = require('./package.json');
 
 const log4js = require('@log4js-node/log4js-api');
 
+const NUM_CHECKSUM_BYTES = 4;
+
+const computeChecksum = function(number) {
+   // compute a checksum by summing the 4 bytes and then using only the lowest 8 bits
+   const b = Buffer.alloc(4);
+   b.writeInt32BE(number, 0);
+
+   let sum = 0;
+   for (let i = 0; i < NUM_CHECKSUM_BYTES; i++) {
+      sum += b.readUInt8(i);
+   }
+
+   return sum & 0xff;
+};
+
 class EsdrRequestError extends Error {
    constructor(axiosError) {
       super();
@@ -476,6 +491,37 @@ class EsdrClient {
 
       this._log.debug("Authenticating to obtain tokens...");
       return await this._authenticate();
+   }
+
+   /**
+    * Returns the current time on the ESDR server as Unix time seconds.  Returns null if the time cannot be obtained,
+    * or if the checksum of the returned time doesn't match the actual checksum.  Will not throw an exception.
+    *
+    * @returns {Promise<number|null>}
+    */
+   async getUnixTimeSeconds() {
+      try {
+         const response = await this._esdrGet('/api/v1/time/unix-time-seconds', false);
+         if (TypeUtils.isDefinedAndNotNull(response) &&
+             TypeUtils.isDefinedAndNotNull(response.data) &&
+             TypeUtils.isDefinedAndNotNull(response.data.data) &&
+             TypeUtils.isDefinedAndNotNull(response.data.data['unixTimeSecs']) &&
+             TypeUtils.isDefinedAndNotNull(response.data.data['checksum'])) {
+
+            let actualChecksum = computeChecksum(response.data.data['unixTimeSecs']);
+            if (actualChecksum === response.data.data['checksum']) {
+               return response.data.data['unixTimeSecs'];
+            }
+            else {
+               throw new Error("Checksum mismatch for time [" + response.data.data['unixTimeSecs'] + "]. Expected [" + response.data.data['checksum'] + "], actual [" + actualChecksum + "]")
+            }
+         }
+      }
+      catch (e) {
+         this._log.error("Failed to get ESDR time: " + e);
+      }
+
+      return null;
    }
 
    async getProduct(productNameOrId, fields = null) {
