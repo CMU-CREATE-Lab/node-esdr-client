@@ -497,7 +497,7 @@ class EsdrClient {
     * Returns the current time on the ESDR server as Unix time seconds.  Returns null if the time cannot be obtained,
     * or if the checksum of the returned time doesn't match the actual checksum.  Will not throw an exception.
     *
-    * @returns {Promise<number|null>}
+    * @returns {Promise<number>|Promise<null>}
     */
    async getUnixTimeSeconds() {
       try {
@@ -513,6 +513,7 @@ class EsdrClient {
                return response.data.data['unixTimeSecs'];
             }
             else {
+               // noinspection ExceptionCaughtLocallyJS
                throw new Error("Checksum mismatch for time [" + response.data.data['unixTimeSecs'] + "]. Expected [" + response.data.data['checksum'] + "], actual [" + actualChecksum + "]")
             }
          }
