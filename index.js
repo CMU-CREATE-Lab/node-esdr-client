@@ -3,6 +3,7 @@ const path = require('path');
 const axios = require('axios');
 const jsonfile = require('jsonfile');
 const httpStatus = require('http-status');
+const zlib = require('zlib');
 const TypeUtils = require('data-type-utils');
 const packageJson = require('./package.json');
 
@@ -346,7 +347,7 @@ class EsdrClient {
       this._hasUserAndClient = this._user !== null && this._client !== null;
    }
 
-   async _callEsdr(url, method, data, authorizationInclusionRequested = false) {
+   async _callEsdr(url, method, data, authorizationInclusionRequested = false, useCompression = false) {
       const self = this;
       const willIncludeAuthorization = self._hasUserAndClient && authorizationInclusionRequested;
       const doRequest = async function() {
@@ -359,6 +360,13 @@ class EsdrClient {
             };
             if (willIncludeAuthorization) {
                requestConfig['headers']['Authorization'] = 'Bearer ' + self._tokenStore.getAccessToken();
+            }
+            if (useCompression) {
+               requestConfig['headers']['Content-Type'] = 'application/json'
+               requestConfig['headers']['Content-Encoding'] = 'gzip'
+               requestConfig['transformRequest'] = function(jsonData) {
+                  return zlib.gzipSync(JSON.stringify(jsonData));
+               }
             }
             return await self._axios(requestConfig);
          }
@@ -409,8 +417,8 @@ class EsdrClient {
       return this._callEsdr(url, 'post', data, willIncludeAuthorization);
    }
 
-   _esdrPut(url, data, willIncludeAuthorization = false) {
-      return this._callEsdr(url, 'put', data, willIncludeAuthorization);
+   _esdrPut(url, data, useCompression = true, willIncludeAuthorization = false) {
+      return this._callEsdr(url, 'put', data, willIncludeAuthorization, useCompression);
    }
 
    async _ensureTokensAreLoaded() {
@@ -594,7 +602,7 @@ class EsdrClient {
       throw new Error("Unexpected feed data, maxTimeSecs not found");
    }
 
-   async uploadToFeedUsingApiKey(feedApiKey, payload) {
+   async uploadToFeedUsingApiKey(feedApiKey, payload, useCompression = true) {
       const self = this;
       if (TypeUtils.isNonEmptyString(feedApiKey)) {
          if (payload && 'data' in payload && Array.isArray(payload.data)) {
@@ -603,7 +611,8 @@ class EsdrClient {
                   self._log.debug("Uploading [" + payload.data.length + "] samples...");
                }
                await self._esdrPut('/api/v1/feeds/' + feedApiKey,       // the upload URL, referenced by API key
-                                   payload,                             // the JSON payload
+                                   payload,                             // the JSON payload,
+                                   useCompression,                      // whether to gzip compress the payload
                                    false);                              // using API key, so no authorization required
             }
             else {
