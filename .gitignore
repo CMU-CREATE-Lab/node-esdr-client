@@ -1,3 +1,4 @@
 .DS_Store
 *.iws
 node_modules
+auth.json
